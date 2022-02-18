@@ -73,6 +73,12 @@
       },
 	  {
         "name": "rgeos"
+      },
+    {
+        "name": "jsonlite"
+      },
+    {
+        "name": "httr"
       }
     ]
   },
@@ -85,7 +91,8 @@
     "cluster",
     "point cluster",
     "cluster use",
-	"animal movement"
+  	"animal movement",
+    "earthranger"
   ],
   "people": [
     {
