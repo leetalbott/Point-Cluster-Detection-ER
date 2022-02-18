@@ -5,6 +5,8 @@ library('lutz')
 library('sf')
 library('sp')
 library('rgeos')
+library('jsonlite')
+library('httr')
 
 rFunction = function(meth="buff", rad=NULL, dur=NULL, dur_unit="days", data, ...) {
   Sys.setenv(tz="UTC")
@@ -144,6 +146,38 @@ rFunction = function(meth="buff", rad=NULL, dur=NULL, dur_unit="days", data, ...
     
     write.csv(clu_tab,file=paste0(Sys.getenv(x = "APP_ARTIFACTS_DIR", "/tmp/"),"Cluster_Table.csv"),row.names=FALSE)
     #write.csv(clu_tab,file="Cluster_Table.csv",row.names=FALSE)
+
+    # start of EarthRanger code block:  pushes cluster events to ER API
+    
+    # create some additional columns in the clu_tab dataframe that will be passed in the ER json
+    clu_tab$device_id <- "1"
+    clu_tab$recorded_at <- as.POSIXct(cluster_table$timestamp.start)
+    clu_tab$title <- cluster_movestack@study
+    clu_tab$event_type <- "moveapps_cluster"
+    
+    # write cluster data to json - iterate over cluster events
+    for (i in 1:nrow(clu_tab))
+    {
+      cluster_output <- list("device_id"=clu_tab$device_id[i]
+                             ,"recorded_at"=clu_tab$recorded_at[i]
+                             ,"location"=list("x"=clu_tab$centr.long[1],"y"=clu_tab$centr.lat[i])
+                             ,"title"=clu_tab$title[i]
+                             ,"event_type"=clu_tab$event_type[i]
+                             ,"event_details"=list("clustered_points"=clu_tab$n.locs[i],"timespan_minutes"=clu_tab$duration..days.[i]*24*60)
+                             )
+      
+      cluster_json <- paste0("[",toJSON(cluster_output,pretty=TRUE,auto_unbox=TRUE),"]")
+
+      er_post <- POST(
+        url = "https://cdip-api-prod01.pamdas.org/events/"
+        ,add_headers(.headers = c('apikey: 8PvB2C0Ujh9uCsr87UR6VFdF8NpAaTiC'
+                                  ,'accept: application/json'
+                                  ,'Content-Type: application/json'))
+        ,body = cluster_json
+      )
+    }
+    
+    # end of EarthRanger code block
     
     # finish points with clusters table, add n.ids and n.locs for Email Alert App
     result@data$n.ids <- apply(matrix(result@data$clusterID), 1, function(x) n.ids[which(cluID==x)])
